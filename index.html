@@ -75,12 +75,6 @@
     display: flex;
     justify-content: center;
     padding: 24px;
-    border: 3px dashed transparent;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .page-wrap.dragover {
-    border-color: var(--accent);
-    background: #eaf3ff;
   }
 
   .page {
@@ -104,6 +98,17 @@
     overflow: visible;
     position: relative;
     background: #fafafa;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .cell.dragover {
+    background: #eaf3ff;
+    box-shadow: inset 0 0 0 3px var(--accent);
+  }
+  .cell.empty-cell {
+    cursor: pointer;
+  }
+  .cell.empty-cell:hover {
+    background: #eef1f5;
   }
   .mark {
     position: absolute;
@@ -123,14 +128,18 @@
   }
   .cell .empty {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 4px;
     height: 100%;
     color: var(--text-muted);
     font-size: 11px;
     text-align: center;
     padding: 4px;
+    pointer-events: none;
   }
+  .cell .empty .num { font-size: 14px; }
 
   @media print {
     .controls { display: none; }
@@ -155,12 +164,13 @@
     </div>
     <input type="file" id="file-input" accept="image/*" multiple>
     <button id="print-btn">印刷</button>
-    <span class="hint">画像を1枚だけ選ぶと9マス全部に同じ画像、複数選ぶと各マスに順番に配置されます。カード面に画像をドラッグ&ドロップしても追加できます。</span>
+    <span class="hint">上の選択で複数枚まとめて配置できます。空きマスはクリック、または画像をドラッグ&ドロップして個別に追加・差し替えできます。</span>
   </div>
 
-  <div class="page-wrap" id="drop-zone">
+  <div class="page-wrap">
     <div class="page" id="page"></div>
   </div>
+  <input type="file" id="cell-file-input" accept="image/*" style="display:none">
 
 <script>
   const CELL_COUNT = 9;
@@ -182,67 +192,93 @@
     });
   });
 
-  function buildCells(urls) {
+  let cellImages = new Array(CELL_COUNT).fill(null);
+  const cellFileInput = document.getElementById('cell-file-input');
+  let cellFileTarget = null;
+
+  function setCellImage(index, url) {
+    cellImages[index] = url;
+    render();
+  }
+
+  function imagesFromFiles(fileList) {
+    return Array.from(fileList)
+      .filter(f => f.type.startsWith('image/'))
+      .map(f => URL.createObjectURL(f));
+  }
+
+  function render() {
     page.innerHTML = '';
     for (let i = 0; i < CELL_COUNT; i++) {
       const cell = document.createElement('div');
       cell.className = 'cell';
-      const url = urls.length === 0 ? null : (urls.length === 1 ? urls[0] : urls[i % urls.length]);
-      if (url && (urls.length > 1 ? i < urls.length : true)) {
+
+      if (cellImages[i]) {
         const img = document.createElement('img');
-        img.src = url;
+        img.src = cellImages[i];
         cell.appendChild(img);
       } else {
+        cell.classList.add('empty-cell');
         const empty = document.createElement('div');
         empty.className = 'empty';
-        empty.textContent = `${i + 1}`;
+        empty.innerHTML = `<span class="num">${i + 1}</span><span>クリック/ドロップ</span>`;
         cell.appendChild(empty);
+        cell.addEventListener('click', () => {
+          cellFileTarget = i;
+          cellFileInput.click();
+        });
       }
+
       for (const pos of ['tl', 'tr', 'bl', 'br']) {
         const mark = document.createElement('span');
         mark.className = `mark mark-${pos}`;
         cell.appendChild(mark);
       }
+
+      cell.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        cell.classList.add('dragover');
+      });
+      cell.addEventListener('dragleave', (e) => {
+        if (cell.contains(e.relatedTarget)) return;
+        cell.classList.remove('dragover');
+      });
+      cell.addEventListener('drop', (e) => {
+        e.preventDefault();
+        cell.classList.remove('dragover');
+        const urls = imagesFromFiles(e.dataTransfer.files);
+        if (urls.length > 0) setCellImage(i, urls[0]);
+      });
+
       page.appendChild(cell);
     }
   }
 
-  function handleFiles(fileList) {
-    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-    if (files.length === 0) return;
-    const urls = files.map(f => URL.createObjectURL(f));
-    buildCells(urls);
-  }
-
-  fileInput.addEventListener('change', () => handleFiles(fileInput.files));
-
-  const dropZone = document.getElementById('drop-zone');
-  ['dragenter', 'dragover'].forEach(evt => {
-    dropZone.addEventListener(evt, (e) => {
-      e.preventDefault();
-      dropZone.classList.add('dragover');
-    });
-  });
-  ['dragleave', 'dragend'].forEach(evt => {
-    dropZone.addEventListener(evt, (e) => {
-      if (evt === 'dragleave' && dropZone.contains(e.relatedTarget)) return;
-      dropZone.classList.remove('dragover');
-    });
-  });
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    handleFiles(e.dataTransfer.files);
+  cellFileInput.addEventListener('change', () => {
+    if (cellFileTarget === null) return;
+    const urls = imagesFromFiles(cellFileInput.files);
+    if (urls.length > 0) setCellImage(cellFileTarget, urls[0]);
+    cellFileInput.value = '';
+    cellFileTarget = null;
   });
 
-  // 画像以外の場所にドロップされてブラウザがファイルを開いてしまうのを防ぐ
+  fileInput.addEventListener('change', () => {
+    const urls = imagesFromFiles(fileInput.files);
+    if (urls.length === 0) return;
+    cellImages = urls.length === 1
+      ? new Array(CELL_COUNT).fill(urls[0])
+      : new Array(CELL_COUNT).fill(null).map((_, i) => urls[i] ?? null);
+    render();
+  });
+
+  // カード以外の場所にドロップされてブラウザがファイルを開いてしまうのを防ぐ
   ['dragover', 'drop'].forEach(evt => {
     window.addEventListener(evt, (e) => e.preventDefault());
   });
 
   printBtn.addEventListener('click', () => window.print());
 
-  buildCells([]);
+  render();
 </script>
 </body>
 </html>
