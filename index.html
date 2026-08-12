@@ -75,6 +75,12 @@
     display: flex;
     justify-content: center;
     padding: 24px;
+    border: 3px dashed transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .page-wrap.dragover {
+    border-color: var(--accent);
+    background: #eaf3ff;
   }
 
   .page {
@@ -149,10 +155,10 @@
     </div>
     <input type="file" id="file-input" accept="image/*" multiple>
     <button id="print-btn">印刷</button>
-    <span class="hint">画像を1枚だけ選ぶと9マス全部に同じ画像、複数選ぶと各マスに順番に配置されます。</span>
+    <span class="hint">画像を1枚だけ選ぶと9マス全部に同じ画像、複数選ぶと各マスに順番に配置されます。カード面に画像をドラッグ&ドロップしても追加できます。</span>
   </div>
 
-  <div class="page-wrap">
+  <div class="page-wrap" id="drop-zone">
     <div class="page" id="page"></div>
   </div>
 
@@ -201,10 +207,37 @@
     }
   }
 
-  fileInput.addEventListener('change', () => {
-    const files = Array.from(fileInput.files);
+  function handleFiles(fileList) {
+    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) return;
     const urls = files.map(f => URL.createObjectURL(f));
     buildCells(urls);
+  }
+
+  fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+  const dropZone = document.getElementById('drop-zone');
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'dragend'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+      if (evt === 'dragleave' && dropZone.contains(e.relatedTarget)) return;
+      dropZone.classList.remove('dragover');
+    });
+  });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  // 画像以外の場所にドロップされてブラウザがファイルを開いてしまうのを防ぐ
+  ['dragover', 'drop'].forEach(evt => {
+    window.addEventListener(evt, (e) => e.preventDefault());
   });
 
   printBtn.addEventListener('click', () => window.print());
