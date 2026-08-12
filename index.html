@@ -89,11 +89,20 @@
     padding: 24px;
   }
 
+  .page-scale {
+    position: relative;
+    overflow: hidden;
+  }
+
   .page {
     background: #fff;
     width: 210mm;
     height: 297mm;
     box-shadow: 0 0 8px rgba(0,0,0,0.15);
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
     display: grid;
     grid-template-columns: 1fr var(--card-w) var(--gap) var(--card-w) var(--gap) var(--card-w) 1fr;
     grid-template-rows: 1fr var(--card-h) var(--gap) var(--card-h) var(--gap) var(--card-h) 1fr;
@@ -166,13 +175,55 @@
   @media print {
     .controls { display: none; }
     .page-wrap { padding: 0; }
+    .page-scale {
+      width: auto !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
     .page {
+      position: static;
+      transform: none !important;
       box-shadow: none;
       margin: 0;
     }
     @page {
       size: A4;
       margin: 0;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .controls {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .controls h1 {
+      margin-right: 0;
+      text-align: center;
+    }
+    .size-toggle {
+      justify-content: center;
+    }
+    .size-toggle button {
+      flex: 1;
+    }
+    .frame-width-control {
+      justify-content: center;
+    }
+    .frame-width-control input[type="range"] {
+      flex: 1;
+    }
+    .controls input[type="file"] {
+      width: 100%;
+    }
+    .controls button#print-btn {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+    }
+    .page-wrap {
+      padding: 12px;
     }
   }
 </style>
@@ -194,7 +245,9 @@
   </div>
 
   <div class="page-wrap">
-    <div class="page" id="page"></div>
+    <div class="page-scale" id="page-scale">
+      <div class="page" id="page"></div>
+    </div>
   </div>
   <input type="file" id="cell-file-input" accept="image/*" style="display:none">
 
@@ -329,7 +382,20 @@
 
   printBtn.addEventListener('click', () => window.print());
 
+  const pageScale = document.getElementById('page-scale');
+  function updatePageScale() {
+    const naturalWidth = page.offsetWidth;
+    const naturalHeight = page.offsetHeight;
+    const available = document.querySelector('.page-wrap').clientWidth - 24;
+    const scale = Math.min(1, available / naturalWidth);
+    page.style.transform = `scale(${scale})`;
+    pageScale.style.width = `${naturalWidth * scale}px`;
+    pageScale.style.height = `${naturalHeight * scale}px`;
+  }
+  window.addEventListener('resize', updatePageScale);
+
   render();
+  updatePageScale();
 </script>
 </body>
 </html>
