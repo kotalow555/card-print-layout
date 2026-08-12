@@ -95,10 +95,8 @@
     height: 297mm;
     box-shadow: 0 0 8px rgba(0,0,0,0.15);
     display: grid;
-    grid-template-columns: var(--card-w) var(--gap) var(--card-w) var(--gap) var(--card-w);
-    grid-template-rows: var(--card-h) var(--gap) var(--card-h) var(--gap) var(--card-h);
-    justify-content: center;
-    align-content: center;
+    grid-template-columns: 1fr var(--card-w) var(--gap) var(--card-w) var(--gap) var(--card-w) 1fr;
+    grid-template-rows: 1fr var(--card-h) var(--gap) var(--card-h) var(--gap) var(--card-h) 1fr;
   }
 
   .divider-v {
@@ -245,13 +243,13 @@
   function render() {
     page.innerHTML = '';
 
-    for (const col of [2, 4]) {
+    for (const col of [3, 5]) {
       const divider = document.createElement('div');
       divider.className = 'divider-v';
       divider.style.gridColumn = String(col);
       page.appendChild(divider);
     }
-    for (const row of [2, 4]) {
+    for (const row of [3, 5]) {
       const divider = document.createElement('div');
       divider.className = 'divider-h';
       divider.style.gridRow = String(row);
@@ -263,8 +261,8 @@
       const col = i % 3;
       const cell = document.createElement('div');
       cell.className = 'cell';
-      cell.style.gridColumn = String(col * 2 + 1);
-      cell.style.gridRow = String(row * 2 + 1);
+      cell.style.gridColumn = String(col * 2 + 2);
+      cell.style.gridRow = String(row * 2 + 2);
 
       if (cellImages[i]) {
         const img = document.createElement('img');
