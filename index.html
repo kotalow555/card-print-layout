@@ -14,6 +14,7 @@
     --border: #e5e5ea;
     --card-w: 59.2mm;
     --card-h: 86.6mm;
+    --frame-w: 3px;
   }
   * { box-sizing: border-box; }
   body {
@@ -70,6 +71,16 @@
     background: var(--accent);
     color: #fff;
   }
+  .frame-width-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .frame-width-control input[type="range"] {
+    width: 100px;
+  }
 
   .page-wrap {
     display: flex;
@@ -93,7 +104,7 @@
   .cell {
     width: var(--card-w);
     height: var(--card-h);
-    outline: double 3px #000;
+    outline: double var(--frame-w) #000;
     outline-offset: 0;
     overflow: visible;
     position: relative;
@@ -162,6 +173,10 @@
       <button type="button" data-w="59" data-h="86">59×86mm</button>
       <button type="button" data-w="59.2" data-h="86.6" class="active">59.2×86.6mm</button>
     </div>
+    <label class="frame-width-control">
+      枠の太さ <span id="frame-w-label">3px</span>
+      <input type="range" id="frame-w-input" min="1" max="10" step="1" value="3">
+    </label>
     <input type="file" id="file-input" accept="image/*" multiple>
     <button id="print-btn">印刷</button>
     <span class="hint">上の選択で複数枚まとめて配置できます。空きマスはクリック、または画像をドラッグ&ドロップして個別に追加・差し替えできます。</span>
@@ -190,6 +205,13 @@
       sizeButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     });
+  });
+
+  const frameWInput = document.getElementById('frame-w-input');
+  const frameWLabel = document.getElementById('frame-w-label');
+  frameWInput.addEventListener('input', () => {
+    document.documentElement.style.setProperty('--frame-w', `${frameWInput.value}px`);
+    frameWLabel.textContent = `${frameWInput.value}px`;
   });
 
   let cellImages = new Array(CELL_COUNT).fill(null);
