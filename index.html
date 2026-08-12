@@ -91,10 +91,6 @@
     border-radius: 6px;
     font-size: 13px;
   }
-  .fine-adjust input:disabled {
-    background: var(--bg);
-    color: var(--text-muted);
-  }
   .frame-width-control {
     display: flex;
     align-items: center;
@@ -292,9 +288,8 @@
 
   function applySize() {
     const activeBtn = document.querySelector('.size-toggle button.active');
-    const isBase59 = activeBtn.dataset.w === '59' && activeBtn.dataset.h === '86';
-    const adjW = isBase59 ? (parseFloat(fineAdjustW.value) || 0) : 0;
-    const adjH = isBase59 ? (parseFloat(fineAdjustH.value) || 0) : 0;
+    const adjW = parseFloat(fineAdjustW.value) || 0;
+    const adjH = parseFloat(fineAdjustH.value) || 0;
     const w = (parseFloat(activeBtn.dataset.w) + adjW).toFixed(1);
     const h = (parseFloat(activeBtn.dataset.h) + adjH).toFixed(1);
     document.documentElement.style.setProperty('--card-w', `${w}mm`);
@@ -306,13 +301,8 @@
     btn.addEventListener('click', () => {
       sizeButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const isBase59 = btn.dataset.w === '59' && btn.dataset.h === '86';
-      fineAdjustW.disabled = !isBase59;
-      fineAdjustH.disabled = !isBase59;
-      if (!isBase59) {
-        fineAdjustW.value = 0;
-        fineAdjustH.value = 0;
-      }
+      fineAdjustW.value = 0;
+      fineAdjustH.value = 0;
       applySize();
     });
   });
