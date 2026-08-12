@@ -317,6 +317,14 @@
     frameWLabel.textContent = `${frameWInput.value}px`;
   });
 
+  // スマホはA4指定通りに印刷できないことが多いため、枠と隙間を初期値だけ小さくする(PCはそのまま)
+  if (window.matchMedia('(max-width: 700px)').matches) {
+    document.documentElement.style.setProperty('--frame-w', '2px');
+    document.documentElement.style.setProperty('--gap', '2mm');
+    frameWInput.value = 2;
+    frameWLabel.textContent = '2px';
+  }
+
   let cellImages = new Array(CELL_COUNT).fill(null);
   const cellFileInput = document.getElementById('cell-file-input');
   let cellFileTarget = null;
