@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カード印刷レイアウト</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card-bg: #ffffff;
+    --text: #1d1d1f;
+    --text-muted: #86868b;
+    --accent: #007aff;
+    --border: #e5e5ea;
+    --card-w: 59.2mm;
+    --card-h: 86.6mm;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .controls h1 {
+    font-size: 18px;
+    margin: 0;
+    margin-right: auto;
+  }
+  .controls input[type="file"] { font-size: 14px; }
+  .controls button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .controls .hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    width: 100%;
+  }
+  .size-toggle {
+    display: flex;
+    gap: 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+  }
+  .size-toggle button {
+    background: transparent;
+    color: var(--text);
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+  }
+  .size-toggle button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .page-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .page {
+    background: #fff;
+    width: 210mm;
+    height: 297mm;
+    box-shadow: 0 0 8px rgba(0,0,0,0.15);
+    display: grid;
+    grid-template-columns: repeat(3, var(--card-w));
+    grid-template-rows: repeat(3, var(--card-h));
+    justify-content: center;
+    align-content: center;
+    gap: 4mm;
+  }
+
+  .cell {
+    width: var(--card-w);
+    height: var(--card-h);
+    border: 3px double #000;
+    overflow: visible;
+    position: relative;
+    background: #fafafa;
+  }
+  .mark {
+    position: absolute;
+    width: 2mm;
+    height: 2mm;
+    pointer-events: none;
+  }
+  .mark-tl { top: -2mm; left: -2mm; border-bottom: 1px solid #000; border-right: 1px solid #000; }
+  .mark-tr { top: -2mm; right: -2mm; border-bottom: 1px solid #000; border-left: 1px solid #000; }
+  .mark-bl { bottom: -2mm; left: -2mm; border-top: 1px solid #000; border-right: 1px solid #000; }
+  .mark-br { bottom: -2mm; right: -2mm; border-top: 1px solid #000; border-left: 1px solid #000; }
+  .cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .cell .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-align: center;
+    padding: 4px;
+  }
+
+  @media print {
+    .controls { display: none; }
+    .page-wrap { padding: 0; }
+    .page {
+      box-shadow: none;
+      margin: 0;
+    }
+    @page {
+      size: A4;
+      margin: 0;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="controls">
+    <h1 id="title">カード印刷レイアウト (59.2mm×86.6mm / 3×3)</h1>
+    <div class="size-toggle">
+      <button type="button" data-w="59" data-h="86">59×86mm</button>
+      <button type="button" data-w="59.2" data-h="86.6" class="active">59.2×86.6mm</button>
+    </div>
+    <input type="file" id="file-input" accept="image/*" multiple>
+    <button id="print-btn">印刷</button>
+    <span class="hint">画像を1枚だけ選ぶと9マス全部に同じ画像、複数選ぶと各マスに順番に配置されます。</span>
+  </div>
+
+  <div class="page-wrap">
+    <div class="page" id="page"></div>
+  </div>
+
+<script>
+  const CELL_COUNT = 9;
+  const fileInput = document.getElementById('file-input');
+  const page = document.getElementById('page');
+  const printBtn = document.getElementById('print-btn');
+  const title = document.getElementById('title');
+  const sizeButtons = document.querySelectorAll('.size-toggle button');
+
+  sizeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const w = btn.dataset.w;
+      const h = btn.dataset.h;
+      document.documentElement.style.setProperty('--card-w', `${w}mm`);
+      document.documentElement.style.setProperty('--card-h', `${h}mm`);
+      title.textContent = `カード印刷レイアウト (${w}mm×${h}mm / 3×3)`;
+      sizeButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  function buildCells(urls) {
+    page.innerHTML = '';
+    for (let i = 0; i < CELL_COUNT; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const url = urls.length === 0 ? null : (urls.length === 1 ? urls[0] : urls[i % urls.length]);
+      if (url && (urls.length > 1 ? i < urls.length : true)) {
+        const img = document.createElement('img');
+        img.src = url;
+        cell.appendChild(img);
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = `${i + 1}`;
+        cell.appendChild(empty);
+      }
+      for (const pos of ['tl', 'tr', 'bl', 'br']) {
+        const mark = document.createElement('span');
+        mark.className = `mark mark-${pos}`;
+        cell.appendChild(mark);
+      }
+      page.appendChild(cell);
+    }
+  }
+
+  fileInput.addEventListener('change', () => {
+    const files = Array.from(fileInput.files);
+    const urls = files.map(f => URL.createObjectURL(f));
+    buildCells(urls);
+  });
+
+  printBtn.addEventListener('click', () => window.print());
+
+  buildCells([]);
+</script>
+</body>
+</html>
