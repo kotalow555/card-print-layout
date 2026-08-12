@@ -75,14 +75,25 @@
   .fine-adjust {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
     font-size: 13px;
     color: var(--text);
-    cursor: pointer;
   }
-  .fine-adjust:has(input:disabled) {
+  .fine-adjust label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .fine-adjust input[type="number"] {
+    width: 56px;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .fine-adjust input:disabled {
+    background: var(--bg);
     color: var(--text-muted);
-    cursor: not-allowed;
   }
   .frame-width-control {
     display: flex;
@@ -247,10 +258,11 @@
       <button type="button" data-w="59" data-h="86" class="active">59×86mm</button>
       <button type="button" data-w="63" data-h="88">63×88mm</button>
     </div>
-    <label class="fine-adjust">
-      <input type="checkbox" id="fine-adjust-checkbox">
-      59.2×86.6mmに微調整
-    </label>
+    <div class="fine-adjust">
+      <span>微調整:</span>
+      <label>幅 +<input type="number" id="fine-adjust-w" step="0.1" min="0" max="5" value="0"> mm</label>
+      <label>高さ +<input type="number" id="fine-adjust-h" step="0.1" min="0" max="5" value="0"> mm</label>
+    </div>
     <label class="frame-width-control">
       枠の太さ <span id="frame-w-label">5px</span>
       <input type="range" id="frame-w-input" min="1" max="10" step="1" value="5">
@@ -275,13 +287,16 @@
   const title = document.getElementById('title');
   const sizeButtons = document.querySelectorAll('.size-toggle button');
 
-  const fineAdjustCheckbox = document.getElementById('fine-adjust-checkbox');
+  const fineAdjustW = document.getElementById('fine-adjust-w');
+  const fineAdjustH = document.getElementById('fine-adjust-h');
 
   function applySize() {
     const activeBtn = document.querySelector('.size-toggle button.active');
     const isBase59 = activeBtn.dataset.w === '59' && activeBtn.dataset.h === '86';
-    const w = (isBase59 && fineAdjustCheckbox.checked) ? '59.2' : activeBtn.dataset.w;
-    const h = (isBase59 && fineAdjustCheckbox.checked) ? '86.6' : activeBtn.dataset.h;
+    const adjW = isBase59 ? (parseFloat(fineAdjustW.value) || 0) : 0;
+    const adjH = isBase59 ? (parseFloat(fineAdjustH.value) || 0) : 0;
+    const w = (parseFloat(activeBtn.dataset.w) + adjW).toFixed(1);
+    const h = (parseFloat(activeBtn.dataset.h) + adjH).toFixed(1);
     document.documentElement.style.setProperty('--card-w', `${w}mm`);
     document.documentElement.style.setProperty('--card-h', `${h}mm`);
     title.textContent = `カード印刷レイアウト (${w}mm×${h}mm / 3×3)`;
@@ -292,13 +307,18 @@
       sizeButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const isBase59 = btn.dataset.w === '59' && btn.dataset.h === '86';
-      fineAdjustCheckbox.disabled = !isBase59;
-      if (!isBase59) fineAdjustCheckbox.checked = false;
+      fineAdjustW.disabled = !isBase59;
+      fineAdjustH.disabled = !isBase59;
+      if (!isBase59) {
+        fineAdjustW.value = 0;
+        fineAdjustH.value = 0;
+      }
       applySize();
     });
   });
 
-  fineAdjustCheckbox.addEventListener('change', applySize);
+  fineAdjustW.addEventListener('input', applySize);
+  fineAdjustH.addEventListener('input', applySize);
 
   const frameWInput = document.getElementById('frame-w-input');
   const frameWLabel = document.getElementById('frame-w-label');
