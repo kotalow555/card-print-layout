@@ -211,6 +211,21 @@
     }
   }
 
+  /* 一部のモバイルブラウザは@media printを印刷出力に反映しないため、JSでも同じ内容を強制する */
+  html.printing .controls { display: none; }
+  html.printing .page-wrap { padding: 0; }
+  html.printing .page-scale {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  html.printing .page {
+    position: static;
+    transform: none !important;
+    box-shadow: none;
+    margin: 0;
+  }
+
   @media (max-width: 700px) {
     .controls {
       flex-direction: column;
@@ -426,6 +441,15 @@
   ['dragover', 'drop'].forEach(evt => {
     window.addEventListener(evt, (e) => e.preventDefault());
   });
+
+  function setPrinting(isPrinting) {
+    document.documentElement.classList.toggle('printing', isPrinting);
+  }
+  window.addEventListener('beforeprint', () => setPrinting(true));
+  window.addEventListener('afterprint', () => setPrinting(false));
+  const printMql = window.matchMedia('print');
+  const onPrintChange = (e) => setPrinting(e.matches);
+  printMql.addEventListener ? printMql.addEventListener('change', onPrintChange) : printMql.addListener(onPrintChange);
 
   printBtn.addEventListener('click', () => window.print());
 
