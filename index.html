@@ -27,17 +27,27 @@
 
   .controls {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    flex-direction: column;
     gap: 12px;
     padding: 16px 20px;
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
   }
-  .controls h1 {
+  .controls-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .controls-header h1 {
     font-size: 18px;
     margin: 0;
-    margin-right: auto;
+  }
+  .controls-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
   .controls input[type="file"] { font-size: 14px; }
   .controls button {
@@ -49,23 +59,27 @@
     font-size: 14px;
     cursor: pointer;
   }
+  .settings-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
   .controls .hint {
     font-size: 12px;
     color: var(--text-muted);
-    width: 100%;
   }
-  .size-groups {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-  }
-  .size-group {
+  .ctrl-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
   }
-  .size-group-label {
+  .ctrl-group-label {
     font-size: 11px;
+    font-weight: 600;
     color: var(--text-muted);
   }
   .size-toggle {
@@ -106,7 +120,7 @@
     font-size: 13px;
   }
   .fine-adjust input[type="number"]:disabled {
-    background: var(--bg);
+    background: var(--card-bg);
     color: var(--text-muted);
     cursor: not-allowed;
   }
@@ -251,22 +265,22 @@
 
   @media screen and (max-width: 700px) {
     .controls {
-      flex-direction: column;
-      align-items: stretch;
       gap: 10px;
     }
-    .controls h1 {
-      margin-right: 0;
+    .controls-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .controls-header h1 {
       text-align: center;
     }
-    .size-groups {
-      width: 100%;
-      justify-content: center;
+    .controls-actions {
+      flex-direction: column;
+      align-items: stretch;
     }
-    .size-group {
+    .ctrl-group {
+      width: 100%;
       align-items: center;
-      flex: 1;
-      min-width: 140px;
     }
     .size-toggle {
       justify-content: center;
@@ -275,8 +289,13 @@
     .size-toggle button {
       flex: 1;
     }
+    .fine-adjust {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
     .frame-width-control {
       justify-content: center;
+      width: 100%;
     }
     .frame-width-control input[type="range"] {
       flex: 1;
@@ -297,37 +316,47 @@
 </head>
 <body>
   <div class="controls">
-    <h1 id="title">カード印刷レイアウト (59mm×86mm / 3×3)</h1>
-    <div class="size-groups">
-      <div class="size-group">
-        <span class="size-group-label">トレーディングカード(3×3)</span>
+    <div class="controls-header">
+      <h1 id="title">カード印刷レイアウト (59mm×86mm / 3×3)</h1>
+      <div class="controls-actions">
+        <input type="file" id="file-input" accept="image/*" multiple>
+        <button id="print-btn">印刷</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div class="ctrl-group">
+        <span class="ctrl-group-label">トレーディングカード(3×3)</span>
         <div class="size-toggle" data-group="card">
           <button type="button" data-w="59" data-h="86" class="active">59×86mm</button>
           <button type="button" data-w="63" data-h="88">63×88mm</button>
         </div>
       </div>
-      <div class="size-group">
-        <span class="size-group-label">スクエア(A4に最大枚数配置)</span>
+      <div class="ctrl-group">
+        <span class="ctrl-group-label">スクエア(A4に最大枚数配置)</span>
         <div class="size-toggle" data-group="square">
           <button type="button" data-w="48" data-h="48">48×48mm</button>
           <button type="button" data-w="52" data-h="52">52×52mm</button>
         </div>
       </div>
+      <div class="ctrl-group" id="fine-adjust-section">
+        <span class="ctrl-group-label">微調整</span>
+        <div class="fine-adjust">
+          <label class="fine-adjust-enable">
+            <input type="checkbox" id="fine-adjust-enable">
+            有効にする
+          </label>
+          <label>幅 +<input type="number" id="fine-adjust-w" step="0.01" min="0" max="5" value="0" disabled> mm</label>
+          <label>高さ +<input type="number" id="fine-adjust-h" step="0.01" min="0" max="5" value="0" disabled> mm</label>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-group-label">枠の太さ</span>
+        <label class="frame-width-control">
+          <span id="frame-w-label">5px</span>
+          <input type="range" id="frame-w-input" min="1" max="10" step="1" value="5">
+        </label>
+      </div>
     </div>
-    <div class="fine-adjust" id="fine-adjust-section">
-      <label class="fine-adjust-enable">
-        <input type="checkbox" id="fine-adjust-enable">
-        微調整
-      </label>
-      <label>幅 +<input type="number" id="fine-adjust-w" step="0.01" min="0" max="5" value="0" disabled> mm</label>
-      <label>高さ +<input type="number" id="fine-adjust-h" step="0.01" min="0" max="5" value="0" disabled> mm</label>
-    </div>
-    <label class="frame-width-control">
-      枠の太さ <span id="frame-w-label">5px</span>
-      <input type="range" id="frame-w-input" min="1" max="10" step="1" value="5">
-    </label>
-    <input type="file" id="file-input" accept="image/*" multiple>
-    <button id="print-btn">印刷</button>
     <span class="hint">上の選択で複数枚まとめて配置できます。空きマスはクリック、または画像をドラッグ&ドロップして個別に追加・差し替えできます。</span>
   </div>
 
@@ -348,7 +377,6 @@
   const printBtn = document.getElementById('print-btn');
   const title = document.getElementById('title');
   const sizeButtons = document.querySelectorAll('.size-toggle button');
-  const fineAdjustSection = document.getElementById('fine-adjust-section');
 
   const fineAdjustEnable = document.getElementById('fine-adjust-enable');
   const fineAdjustW = document.getElementById('fine-adjust-w');
@@ -388,12 +416,17 @@
     const group = activeBtn.closest('.size-toggle').dataset.group;
     const baseW = parseFloat(activeBtn.dataset.w);
     const baseH = parseFloat(activeBtn.dataset.h);
+    const adjW = fineAdjustEnable.checked ? (parseFloat(fineAdjustW.value) || 0) : 0;
+    const adjH = fineAdjustEnable.checked ? (parseFloat(fineAdjustH.value) || 0) : 0;
+    const w = baseW + adjW;
+    const h = baseH + adjH;
+
     if (group === 'square') {
-      const { cols, rows } = computeAutoGrid(baseW, baseH);
-      const gap = expandGap(baseW, baseH, cols, rows);
-      return { activeBtn, group, cols, rows, baseW, baseH, gap };
+      const { cols, rows } = computeAutoGrid(w, h);
+      const gap = expandGap(w, h, cols, rows);
+      return { activeBtn, group, cols, rows, w, h, gap };
     }
-    return { activeBtn, group, cols: 3, rows: 3, baseW, baseH, gap: gapMM };
+    return { activeBtn, group, cols: 3, rows: 3, w, h, gap: gapMM };
   }
 
   function buildTrack(count, isRow) {
@@ -415,13 +448,8 @@
 
   function applySize() {
     const tpl = getActiveTemplate();
-    const isCard = tpl.group === 'card';
-    fineAdjustSection.style.display = isCard ? '' : 'none';
-
-    const adjW = (isCard && fineAdjustEnable.checked) ? (parseFloat(fineAdjustW.value) || 0) : 0;
-    const adjH = (isCard && fineAdjustEnable.checked) ? (parseFloat(fineAdjustH.value) || 0) : 0;
-    const w = (tpl.baseW + adjW).toFixed(2);
-    const h = (tpl.baseH + adjH).toFixed(2);
+    const w = tpl.w.toFixed(2);
+    const h = tpl.h.toFixed(2);
     document.documentElement.style.setProperty('--card-w', `${w}mm`);
     document.documentElement.style.setProperty('--card-h', `${h}mm`);
     document.documentElement.style.setProperty('--gap', `${tpl.gap.toFixed(2)}mm`);
@@ -431,7 +459,7 @@
 
     resizeCellImages(tpl.cols * tpl.rows);
 
-    const countLabel = isCard ? '' : `, ${tpl.cols * tpl.rows}枚`;
+    const countLabel = tpl.group === 'square' ? `, ${tpl.cols * tpl.rows}枚` : '';
     title.textContent = `カード印刷レイアウト (${w}mm×${h}mm / ${tpl.cols}×${tpl.rows}${countLabel})`;
 
     render();
