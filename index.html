@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>カード印刷レイアウト</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #f5f5f7;
@@ -15,13 +18,14 @@
     --card-w: 59mm;
     --card-h: 86mm;
     --frame-w: 4px;
-    --gap: 4mm;
+    --col-gap: 4mm;
+    --row-gap: 4mm;
     --mark-size: 2mm;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", sans-serif;
+    font-family: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", sans-serif;
     background: var(--bg);
     color: var(--text);
   }
@@ -318,7 +322,7 @@
 <body>
   <div class="controls">
     <div class="controls-header">
-      <h1 id="title">カード印刷レイアウト (59mm×86mm / 3×3)</h1>
+      <h1 id="title">カード印刷レイアウト (59mm×86mm / 3×3, 9枚)</h1>
       <div class="controls-actions">
         <input type="file" id="file-input" accept="image/*" multiple>
         <button id="print-btn">印刷</button>
@@ -333,7 +337,7 @@
         </div>
       </div>
       <div class="ctrl-group">
-        <span class="ctrl-group-label">スクエア(A4に最大枚数配置)</span>
+        <span class="ctrl-group-label">シール(A4に最大枚数配置)</span>
         <div class="size-toggle" data-group="square">
           <button type="button" data-w="48" data-h="48">48×48mm</button>
           <button type="button" data-w="52" data-h="52">52×52mm</button>
@@ -407,6 +411,27 @@
     return { cols, rows };
   }
 
+  // 軸ごとにギャップをGAP_MAXまで広げてみて、印刷の安全マージンを追加で確保できる場合だけ採用する
+  function computeSquareGaps(cardW, cardH, cols, rows) {
+    const availW = PAGE_W_MM - SAFE_MARGIN_MM * 2;
+    const availH = PAGE_H_MM - SAFE_MARGIN_MM * 2;
+    const GAP_MAX = 4; // 開きすぎて安全マージンを食わないよう上限をトレーディングカードと同じにする
+    const MIN_EXTRA_MARGIN_MM = 3; // SAFE_MARGIN_MMに加えて左右/上下に最低限残したい余白
+
+    function axisGap(count, size, avail) {
+      if (count <= 1) return GAP_MAX;
+      const maxFeasible = (avail - count * size) / (count - 1);
+      const candidate = Math.min(GAP_MAX, maxFeasible);
+      const leftoverAtCandidate = avail - (count * size + (count - 1) * candidate);
+      return leftoverAtCandidate >= MIN_EXTRA_MARGIN_MM * 2 ? candidate : SQUARE_GAP_MM;
+    }
+
+    return {
+      colGap: axisGap(cols, cardW, availW),
+      rowGap: axisGap(rows, cardH, availH),
+    };
+  }
+
   function getActiveTemplate() {
     const activeBtn = document.querySelector('.size-toggle button.active');
     const group = activeBtn.closest('.size-toggle').dataset.group;
@@ -419,17 +444,19 @@
 
     if (group === 'square') {
       const { cols, rows } = computeAutoGrid(w, h);
-      return { activeBtn, group, cols, rows, w, h, gap: SQUARE_GAP_MM };
+      const { colGap, rowGap } = computeSquareGaps(w, h, cols, rows);
+      return { activeBtn, group, cols, rows, w, h, colGap, rowGap };
     }
-    return { activeBtn, group, cols: 3, rows: 3, w, h, gap: gapMM };
+    return { activeBtn, group, cols: 3, rows: 3, w, h, colGap: gapMM, rowGap: gapMM };
   }
 
   function buildTrack(count, isRow) {
     const size = isRow ? 'var(--card-h)' : 'var(--card-w)';
+    const gapVar = isRow ? 'var(--row-gap)' : 'var(--col-gap)';
     const parts = ['1fr'];
     for (let i = 0; i < count; i++) {
       parts.push(size);
-      if (i < count - 1) parts.push('var(--gap)');
+      if (i < count - 1) parts.push(gapVar);
     }
     parts.push('1fr');
     return parts.join(' ');
@@ -441,15 +468,21 @@
     cellImages = next;
   }
 
+  // タイトル表示用に末尾の0を省略する(59.00 -> "59", 59.14 -> "59.14")
+  function formatMM(value) {
+    return parseFloat(value.toFixed(2)).toString();
+  }
+
   function applySize() {
     const tpl = getActiveTemplate();
     const w = tpl.w.toFixed(2);
     const h = tpl.h.toFixed(2);
     document.documentElement.style.setProperty('--card-w', `${w}mm`);
     document.documentElement.style.setProperty('--card-h', `${h}mm`);
-    document.documentElement.style.setProperty('--gap', `${tpl.gap.toFixed(2)}mm`);
-    // 隣接セルのカドマーク同士が重ならないよう、ギャップの半分を上限にする
-    const markSize = Math.min(2, tpl.gap / 2);
+    document.documentElement.style.setProperty('--col-gap', `${tpl.colGap.toFixed(2)}mm`);
+    document.documentElement.style.setProperty('--row-gap', `${tpl.rowGap.toFixed(2)}mm`);
+    // 隣接セルのカドマーク同士が重ならないよう、狭い方のギャップの半分を上限にする
+    const markSize = Math.min(2, tpl.colGap / 2, tpl.rowGap / 2);
     document.documentElement.style.setProperty('--mark-size', `${markSize.toFixed(2)}mm`);
 
     page.style.gridTemplateColumns = buildTrack(tpl.cols, false);
@@ -457,8 +490,8 @@
 
     resizeCellImages(tpl.cols * tpl.rows);
 
-    const countLabel = tpl.group === 'square' ? `, ${tpl.cols * tpl.rows}枚` : '';
-    title.textContent = `カード印刷レイアウト (${w}mm×${h}mm / ${tpl.cols}×${tpl.rows}${countLabel})`;
+    const count = tpl.cols * tpl.rows;
+    title.textContent = `カード印刷レイアウト (${formatMM(tpl.w)}mm×${formatMM(tpl.h)}mm / ${tpl.cols}×${tpl.rows}, ${count}枚)`;
 
     render();
   }
@@ -613,8 +646,16 @@
     window.addEventListener(evt, (e) => e.preventDefault());
   });
 
+  // 印刷/PDF保存時のファイル名候補に使われるdocument.titleを、印刷中だけ日時にする
+  const baseDocTitle = document.title;
+  function formatPrintTimestamp(date) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+  }
+
   function setPrinting(isPrinting) {
     document.documentElement.classList.toggle('printing', isPrinting);
+    document.title = isPrinting ? formatPrintTimestamp(new Date()) : baseDocTitle;
   }
   window.addEventListener('beforeprint', () => setPrinting(true));
   window.addEventListener('afterprint', () => setPrinting(false));
