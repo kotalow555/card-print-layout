@@ -14,8 +14,9 @@
     --border: #e5e5ea;
     --card-w: 59mm;
     --card-h: 86mm;
-    --frame-w: 5px;
+    --frame-w: 4px;
     --gap: 4mm;
+    --mark-size: 2mm;
   }
   * { box-sizing: border-box; }
   body {
@@ -199,14 +200,14 @@
   }
   .mark {
     position: absolute;
-    width: 2mm;
-    height: 2mm;
+    width: var(--mark-size);
+    height: var(--mark-size);
     pointer-events: none;
   }
-  .mark-tl { top: -2mm; left: -2mm; border-bottom: 1px solid #000; border-right: 1px solid #000; }
-  .mark-tr { top: -2mm; right: -2mm; border-bottom: 1px solid #000; border-left: 1px solid #000; }
-  .mark-bl { bottom: -2mm; left: -2mm; border-top: 1px solid #000; border-right: 1px solid #000; }
-  .mark-br { bottom: -2mm; right: -2mm; border-top: 1px solid #000; border-left: 1px solid #000; }
+  .mark-tl { top: calc(-1 * var(--mark-size)); left: calc(-1 * var(--mark-size)); border-bottom: 1px solid #000; border-right: 1px solid #000; }
+  .mark-tr { top: calc(-1 * var(--mark-size)); right: calc(-1 * var(--mark-size)); border-bottom: 1px solid #000; border-left: 1px solid #000; }
+  .mark-bl { bottom: calc(-1 * var(--mark-size)); left: calc(-1 * var(--mark-size)); border-top: 1px solid #000; border-right: 1px solid #000; }
+  .mark-br { bottom: calc(-1 * var(--mark-size)); right: calc(-1 * var(--mark-size)); border-top: 1px solid #000; border-left: 1px solid #000; }
   .cell img {
     width: 100%;
     height: 100%;
@@ -352,8 +353,8 @@
       <div class="ctrl-group">
         <span class="ctrl-group-label">枠の太さ</span>
         <label class="frame-width-control">
-          <span id="frame-w-label">5px</span>
-          <input type="range" id="frame-w-input" min="1" max="10" step="1" value="5">
+          <span id="frame-w-label">4px</span>
+          <input type="range" id="frame-w-input" min="1" max="10" step="1" value="4">
         </label>
       </div>
     </div>
@@ -391,24 +392,19 @@
     return FINE_ADJUST_DEFAULTS[`${btn.dataset.w}-${btn.dataset.h}`] || { w: 0, h: 0 };
   }
 
+  // グループごとの枠の太さデフォルト値
+  const FRAME_W_DEFAULTS = { card: 4, square: 1 };
+
   let gapMM = 4;
+  const SQUARE_GAP_MM = 2; // 実機印刷での見切れを避けるため、外側マージンを優先して狭めに固定
 
   // カードサイズ+ギャップ+安全余白から、A4に収まる最大の列数・行数を求める
   function computeAutoGrid(cardW, cardH) {
     const availW = PAGE_W_MM - SAFE_MARGIN_MM * 2;
     const availH = PAGE_H_MM - SAFE_MARGIN_MM * 2;
-    const cols = Math.max(1, Math.floor((availW + gapMM) / (cardW + gapMM)));
-    const rows = Math.max(1, Math.floor((availH + gapMM) / (cardH + gapMM)));
+    const cols = Math.max(1, Math.floor((availW + SQUARE_GAP_MM) / (cardW + SQUARE_GAP_MM)));
+    const rows = Math.max(1, Math.floor((availH + SQUARE_GAP_MM) / (cardH + SQUARE_GAP_MM)));
     return { cols, rows };
-  }
-
-  // cols/rowsが決まった後、余った余白を外側マージンではなくマス間ギャップに充てる
-  function expandGap(cardW, cardH, cols, rows) {
-    const availW = PAGE_W_MM - SAFE_MARGIN_MM * 2;
-    const availH = PAGE_H_MM - SAFE_MARGIN_MM * 2;
-    const maxGapW = cols > 1 ? (availW - cols * cardW) / (cols - 1) : Infinity;
-    const maxGapH = rows > 1 ? (availH - rows * cardH) / (rows - 1) : Infinity;
-    return Math.max(gapMM, Math.min(maxGapW, maxGapH));
   }
 
   function getActiveTemplate() {
@@ -423,8 +419,7 @@
 
     if (group === 'square') {
       const { cols, rows } = computeAutoGrid(w, h);
-      const gap = expandGap(w, h, cols, rows);
-      return { activeBtn, group, cols, rows, w, h, gap };
+      return { activeBtn, group, cols, rows, w, h, gap: SQUARE_GAP_MM };
     }
     return { activeBtn, group, cols: 3, rows: 3, w, h, gap: gapMM };
   }
@@ -453,6 +448,9 @@
     document.documentElement.style.setProperty('--card-w', `${w}mm`);
     document.documentElement.style.setProperty('--card-h', `${h}mm`);
     document.documentElement.style.setProperty('--gap', `${tpl.gap.toFixed(2)}mm`);
+    // 隣接セルのカドマーク同士が重ならないよう、ギャップの半分を上限にする
+    const markSize = Math.min(2, tpl.gap / 2);
+    document.documentElement.style.setProperty('--mark-size', `${markSize.toFixed(2)}mm`);
 
     page.style.gridTemplateColumns = buildTrack(tpl.cols, false);
     page.style.gridTemplateRows = buildTrack(tpl.rows, true);
@@ -472,6 +470,11 @@
       const def = fineAdjustDefaultFor(btn);
       fineAdjustW.value = def.w;
       fineAdjustH.value = def.h;
+      const group = btn.closest('.size-toggle').dataset.group;
+      const frameW = FRAME_W_DEFAULTS[group];
+      frameWInput.value = frameW;
+      frameWLabel.textContent = `${frameW}px`;
+      document.documentElement.style.setProperty('--frame-w', `${frameW}px`);
       applySize();
     });
   });
@@ -498,12 +501,9 @@
     frameWLabel.textContent = `${frameWInput.value}px`;
   });
 
-  // スマホはA4指定通りに印刷できないことが多いため、枠と隙間を初期値だけ小さくする(PCはそのまま)
+  // スマホはA4指定通りに印刷できないことが多いため、トレーディングカードの隙間を初期値だけ小さくする(PCはそのまま)
   if (window.matchMedia('(max-width: 700px)').matches) {
-    document.documentElement.style.setProperty('--frame-w', '2px');
     gapMM = 2;
-    frameWInput.value = 2;
-    frameWLabel.textContent = '2px';
   }
 
   let cellImages = [];
