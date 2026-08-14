@@ -54,6 +54,20 @@
     color: var(--text-muted);
     width: 100%;
   }
+  .size-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .size-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .size-group-label {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
   .size-toggle {
     display: flex;
     gap: 4px;
@@ -134,8 +148,6 @@
     left: 0;
     transform-origin: top left;
     display: grid;
-    grid-template-columns: 1fr var(--card-w) var(--gap) var(--card-w) var(--gap) var(--card-w) 1fr;
-    grid-template-rows: 1fr var(--card-h) var(--gap) var(--card-h) var(--gap) var(--card-h) 1fr;
   }
 
   .divider-v {
@@ -247,8 +259,18 @@
       margin-right: 0;
       text-align: center;
     }
+    .size-groups {
+      width: 100%;
+      justify-content: center;
+    }
+    .size-group {
+      align-items: center;
+      flex: 1;
+      min-width: 140px;
+    }
     .size-toggle {
       justify-content: center;
+      width: 100%;
     }
     .size-toggle button {
       flex: 1;
@@ -276,11 +298,23 @@
 <body>
   <div class="controls">
     <h1 id="title">カード印刷レイアウト (59mm×86mm / 3×3)</h1>
-    <div class="size-toggle">
-      <button type="button" data-w="59" data-h="86" class="active">59×86mm</button>
-      <button type="button" data-w="63" data-h="88">63×88mm</button>
+    <div class="size-groups">
+      <div class="size-group">
+        <span class="size-group-label">トレーディングカード(3×3)</span>
+        <div class="size-toggle" data-group="card">
+          <button type="button" data-w="59" data-h="86" class="active">59×86mm</button>
+          <button type="button" data-w="63" data-h="88">63×88mm</button>
+        </div>
+      </div>
+      <div class="size-group">
+        <span class="size-group-label">スクエア(A4に最大枚数配置)</span>
+        <div class="size-toggle" data-group="square">
+          <button type="button" data-w="48" data-h="48">48×48mm</button>
+          <button type="button" data-w="52" data-h="52">52×52mm</button>
+        </div>
+      </div>
     </div>
-    <div class="fine-adjust">
+    <div class="fine-adjust" id="fine-adjust-section">
       <label class="fine-adjust-enable">
         <input type="checkbox" id="fine-adjust-enable">
         微調整
@@ -305,12 +339,16 @@
   <input type="file" id="cell-file-input" accept="image/*" style="display:none">
 
 <script>
-  const CELL_COUNT = 9;
+  const PAGE_W_MM = 210;
+  const PAGE_H_MM = 297;
+  const SAFE_MARGIN_MM = 3; // 印刷不可能領域対策の安全余白
+
   const fileInput = document.getElementById('file-input');
   const page = document.getElementById('page');
   const printBtn = document.getElementById('print-btn');
   const title = document.getElementById('title');
   const sizeButtons = document.querySelectorAll('.size-toggle button');
+  const fineAdjustSection = document.getElementById('fine-adjust-section');
 
   const fineAdjustEnable = document.getElementById('fine-adjust-enable');
   const fineAdjustW = document.getElementById('fine-adjust-w');
@@ -325,15 +363,68 @@
     return FINE_ADJUST_DEFAULTS[`${btn.dataset.w}-${btn.dataset.h}`] || { w: 0, h: 0 };
   }
 
-  function applySize() {
+  let gapMM = 4;
+
+  // カードサイズ+ギャップ+安全余白から、A4に収まる最大の列数・行数を求める
+  function computeAutoGrid(cardW, cardH) {
+    const availW = PAGE_W_MM - SAFE_MARGIN_MM * 2;
+    const availH = PAGE_H_MM - SAFE_MARGIN_MM * 2;
+    const cols = Math.max(1, Math.floor((availW + gapMM) / (cardW + gapMM)));
+    const rows = Math.max(1, Math.floor((availH + gapMM) / (cardH + gapMM)));
+    return { cols, rows };
+  }
+
+  function getActiveTemplate() {
     const activeBtn = document.querySelector('.size-toggle button.active');
-    const adjW = fineAdjustEnable.checked ? (parseFloat(fineAdjustW.value) || 0) : 0;
-    const adjH = fineAdjustEnable.checked ? (parseFloat(fineAdjustH.value) || 0) : 0;
-    const w = (parseFloat(activeBtn.dataset.w) + adjW).toFixed(2);
-    const h = (parseFloat(activeBtn.dataset.h) + adjH).toFixed(2);
+    const group = activeBtn.closest('.size-toggle').dataset.group;
+    const baseW = parseFloat(activeBtn.dataset.w);
+    const baseH = parseFloat(activeBtn.dataset.h);
+    if (group === 'square') {
+      const { cols, rows } = computeAutoGrid(baseW, baseH);
+      return { activeBtn, group, cols, rows, baseW, baseH };
+    }
+    return { activeBtn, group, cols: 3, rows: 3, baseW, baseH };
+  }
+
+  function buildTrack(count, isRow) {
+    const size = isRow ? 'var(--card-h)' : 'var(--card-w)';
+    const parts = ['1fr'];
+    for (let i = 0; i < count; i++) {
+      parts.push(size);
+      if (i < count - 1) parts.push('var(--gap)');
+    }
+    parts.push('1fr');
+    return parts.join(' ');
+  }
+
+  function resizeCellImages(count) {
+    const next = new Array(count).fill(null);
+    for (let i = 0; i < Math.min(count, cellImages.length); i++) next[i] = cellImages[i];
+    cellImages = next;
+  }
+
+  function applySize() {
+    const tpl = getActiveTemplate();
+    const isCard = tpl.group === 'card';
+    fineAdjustSection.style.display = isCard ? '' : 'none';
+
+    const adjW = (isCard && fineAdjustEnable.checked) ? (parseFloat(fineAdjustW.value) || 0) : 0;
+    const adjH = (isCard && fineAdjustEnable.checked) ? (parseFloat(fineAdjustH.value) || 0) : 0;
+    const w = (tpl.baseW + adjW).toFixed(2);
+    const h = (tpl.baseH + adjH).toFixed(2);
     document.documentElement.style.setProperty('--card-w', `${w}mm`);
     document.documentElement.style.setProperty('--card-h', `${h}mm`);
-    title.textContent = `カード印刷レイアウト (${w}mm×${h}mm / 3×3)`;
+    document.documentElement.style.setProperty('--gap', `${gapMM}mm`);
+
+    page.style.gridTemplateColumns = buildTrack(tpl.cols, false);
+    page.style.gridTemplateRows = buildTrack(tpl.rows, true);
+
+    resizeCellImages(tpl.cols * tpl.rows);
+
+    const countLabel = isCard ? '' : `, ${tpl.cols * tpl.rows}枚`;
+    title.textContent = `カード印刷レイアウト (${w}mm×${h}mm / ${tpl.cols}×${tpl.rows}${countLabel})`;
+
+    render();
   }
 
   sizeButtons.forEach(btn => {
@@ -372,12 +463,12 @@
   // スマホはA4指定通りに印刷できないことが多いため、枠と隙間を初期値だけ小さくする(PCはそのまま)
   if (window.matchMedia('(max-width: 700px)').matches) {
     document.documentElement.style.setProperty('--frame-w', '2px');
-    document.documentElement.style.setProperty('--gap', '2mm');
+    gapMM = 2;
     frameWInput.value = 2;
     frameWLabel.textContent = '2px';
   }
 
-  let cellImages = new Array(CELL_COUNT).fill(null);
+  let cellImages = [];
   const cellFileInput = document.getElementById('cell-file-input');
   let cellFileTarget = null;
 
@@ -393,24 +484,28 @@
   }
 
   function render() {
+    const tpl = getActiveTemplate();
+    const cols = tpl.cols;
+    const rows = tpl.rows;
+    const cellCount = cols * rows;
     page.innerHTML = '';
 
-    for (const col of [3, 5]) {
+    for (let c = 0; c < cols - 1; c++) {
       const divider = document.createElement('div');
       divider.className = 'divider-v';
-      divider.style.gridColumn = String(col);
+      divider.style.gridColumn = String(2 * c + 3);
       page.appendChild(divider);
     }
-    for (const row of [3, 5]) {
+    for (let r = 0; r < rows - 1; r++) {
       const divider = document.createElement('div');
       divider.className = 'divider-h';
-      divider.style.gridRow = String(row);
+      divider.style.gridRow = String(2 * r + 3);
       page.appendChild(divider);
     }
 
-    for (let i = 0; i < CELL_COUNT; i++) {
-      const row = Math.floor(i / 3);
-      const col = i % 3;
+    for (let i = 0; i < cellCount; i++) {
+      const row = Math.floor(i / cols);
+      const col = i % cols;
       const cell = document.createElement('div');
       cell.className = 'cell';
       cell.style.gridColumn = String(col * 2 + 2);
@@ -468,9 +563,10 @@
   fileInput.addEventListener('change', () => {
     const urls = imagesFromFiles(fileInput.files);
     if (urls.length === 0) return;
+    const count = cellImages.length;
     cellImages = urls.length === 1
-      ? new Array(CELL_COUNT).fill(urls[0])
-      : new Array(CELL_COUNT).fill(null).map((_, i) => urls[i] ?? null);
+      ? new Array(count).fill(urls[0])
+      : new Array(count).fill(null).map((_, i) => urls[i] ?? null);
     render();
   });
 
@@ -506,7 +602,7 @@
   }
   window.addEventListener('resize', updatePageScale);
 
-  render();
+  applySize();
   updatePageScale();
 </script>
 </body>
