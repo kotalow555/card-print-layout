@@ -374,6 +374,15 @@
     return { cols, rows };
   }
 
+  // cols/rowsが決まった後、余った余白を外側マージンではなくマス間ギャップに充てる
+  function expandGap(cardW, cardH, cols, rows) {
+    const availW = PAGE_W_MM - SAFE_MARGIN_MM * 2;
+    const availH = PAGE_H_MM - SAFE_MARGIN_MM * 2;
+    const maxGapW = cols > 1 ? (availW - cols * cardW) / (cols - 1) : Infinity;
+    const maxGapH = rows > 1 ? (availH - rows * cardH) / (rows - 1) : Infinity;
+    return Math.max(gapMM, Math.min(maxGapW, maxGapH));
+  }
+
   function getActiveTemplate() {
     const activeBtn = document.querySelector('.size-toggle button.active');
     const group = activeBtn.closest('.size-toggle').dataset.group;
@@ -381,9 +390,10 @@
     const baseH = parseFloat(activeBtn.dataset.h);
     if (group === 'square') {
       const { cols, rows } = computeAutoGrid(baseW, baseH);
-      return { activeBtn, group, cols, rows, baseW, baseH };
+      const gap = expandGap(baseW, baseH, cols, rows);
+      return { activeBtn, group, cols, rows, baseW, baseH, gap };
     }
-    return { activeBtn, group, cols: 3, rows: 3, baseW, baseH };
+    return { activeBtn, group, cols: 3, rows: 3, baseW, baseH, gap: gapMM };
   }
 
   function buildTrack(count, isRow) {
@@ -414,7 +424,7 @@
     const h = (tpl.baseH + adjH).toFixed(2);
     document.documentElement.style.setProperty('--card-w', `${w}mm`);
     document.documentElement.style.setProperty('--card-h', `${h}mm`);
-    document.documentElement.style.setProperty('--gap', `${gapMM}mm`);
+    document.documentElement.style.setProperty('--gap', `${tpl.gap.toFixed(2)}mm`);
 
     page.style.gridTemplateColumns = buildTrack(tpl.cols, false);
     page.style.gridTemplateRows = buildTrack(tpl.rows, true);
