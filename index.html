@@ -387,13 +387,15 @@
   const fineAdjustW = document.getElementById('fine-adjust-w');
   const fineAdjustH = document.getElementById('fine-adjust-h');
 
-  // サイズごとの微調整デフォルト値(有効化した際にプリセットする値)
-  const FINE_ADJUST_DEFAULTS = {
-    '59-86': { w: 0.14, h: 0.6 },
-  };
+  // 微調整の初期オフセットは基準サイズに対する倍率から算出する(59mmを+0.15mm、86mmを+0.8mmとする比率)
+  const FINE_ADJUST_DEFAULT_SCALE = { w: 1 + 0.15 / 59, h: 1 + 0.8 / 86 };
 
   function fineAdjustDefaultFor(btn) {
-    return FINE_ADJUST_DEFAULTS[`${btn.dataset.w}-${btn.dataset.h}`] || { w: 0, h: 0 };
+    const baseW = parseFloat(btn.dataset.w);
+    const baseH = parseFloat(btn.dataset.h);
+    const w = Math.round(baseW * (FINE_ADJUST_DEFAULT_SCALE.w - 1) * 100) / 100;
+    const h = Math.round(baseH * (FINE_ADJUST_DEFAULT_SCALE.h - 1) * 100) / 100;
+    return { w, h };
   }
 
   // グループごとの枠の太さデフォルト値
