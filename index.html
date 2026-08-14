@@ -91,6 +91,17 @@
     border-radius: 6px;
     font-size: 13px;
   }
+  .fine-adjust input[type="number"]:disabled {
+    background: var(--bg);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
+  .fine-adjust-enable {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
   .frame-width-control {
     display: flex;
     align-items: center;
@@ -270,9 +281,12 @@
       <button type="button" data-w="63" data-h="88">63×88mm</button>
     </div>
     <div class="fine-adjust">
-      <span>微調整:</span>
-      <label>幅 +<input type="number" id="fine-adjust-w" step="0.1" min="0" max="5" value="0"> mm</label>
-      <label>高さ +<input type="number" id="fine-adjust-h" step="0.1" min="0" max="5" value="0"> mm</label>
+      <label class="fine-adjust-enable">
+        <input type="checkbox" id="fine-adjust-enable">
+        微調整
+      </label>
+      <label>幅 +<input type="number" id="fine-adjust-w" step="0.01" min="0" max="5" value="0" disabled> mm</label>
+      <label>高さ +<input type="number" id="fine-adjust-h" step="0.01" min="0" max="5" value="0" disabled> mm</label>
     </div>
     <label class="frame-width-control">
       枠の太さ <span id="frame-w-label">5px</span>
@@ -298,15 +312,25 @@
   const title = document.getElementById('title');
   const sizeButtons = document.querySelectorAll('.size-toggle button');
 
+  const fineAdjustEnable = document.getElementById('fine-adjust-enable');
   const fineAdjustW = document.getElementById('fine-adjust-w');
   const fineAdjustH = document.getElementById('fine-adjust-h');
 
+  // サイズごとの微調整デフォルト値(有効化した際にプリセットする値)
+  const FINE_ADJUST_DEFAULTS = {
+    '59-86': { w: 0.14, h: 0.6 },
+  };
+
+  function fineAdjustDefaultFor(btn) {
+    return FINE_ADJUST_DEFAULTS[`${btn.dataset.w}-${btn.dataset.h}`] || { w: 0, h: 0 };
+  }
+
   function applySize() {
     const activeBtn = document.querySelector('.size-toggle button.active');
-    const adjW = parseFloat(fineAdjustW.value) || 0;
-    const adjH = parseFloat(fineAdjustH.value) || 0;
-    const w = (parseFloat(activeBtn.dataset.w) + adjW).toFixed(1);
-    const h = (parseFloat(activeBtn.dataset.h) + adjH).toFixed(1);
+    const adjW = fineAdjustEnable.checked ? (parseFloat(fineAdjustW.value) || 0) : 0;
+    const adjH = fineAdjustEnable.checked ? (parseFloat(fineAdjustH.value) || 0) : 0;
+    const w = (parseFloat(activeBtn.dataset.w) + adjW).toFixed(2);
+    const h = (parseFloat(activeBtn.dataset.h) + adjH).toFixed(2);
     document.documentElement.style.setProperty('--card-w', `${w}mm`);
     document.documentElement.style.setProperty('--card-h', `${h}mm`);
     title.textContent = `カード印刷レイアウト (${w}mm×${h}mm / 3×3)`;
@@ -316,10 +340,23 @@
     btn.addEventListener('click', () => {
       sizeButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      fineAdjustW.value = 0;
-      fineAdjustH.value = 0;
+      const def = fineAdjustDefaultFor(btn);
+      fineAdjustW.value = def.w;
+      fineAdjustH.value = def.h;
       applySize();
     });
+  });
+
+  fineAdjustEnable.addEventListener('change', () => {
+    fineAdjustW.disabled = !fineAdjustEnable.checked;
+    fineAdjustH.disabled = !fineAdjustEnable.checked;
+    if (fineAdjustEnable.checked) {
+      const activeBtn = document.querySelector('.size-toggle button.active');
+      const def = fineAdjustDefaultFor(activeBtn);
+      fineAdjustW.value = def.w;
+      fineAdjustH.value = def.h;
+    }
+    applySize();
   });
 
   fineAdjustW.addEventListener('input', applySize);
