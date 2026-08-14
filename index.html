@@ -64,6 +64,10 @@
     font-size: 14px;
     cursor: pointer;
   }
+  .controls button:disabled {
+    background: var(--text-muted);
+    cursor: default;
+  }
   .settings-row {
     display: flex;
     flex-wrap: wrap;
@@ -308,7 +312,8 @@
     .controls input[type="file"] {
       width: 100%;
     }
-    .controls button#print-btn {
+    .controls button#print-btn,
+    .controls button#save-images-btn {
       width: 100%;
       padding: 12px;
       font-size: 16px;
@@ -325,6 +330,7 @@
       <h1 id="title">カード印刷レイアウト (59mm×86mm / 3×3, 9枚)</h1>
       <div class="controls-actions">
         <input type="file" id="file-input" accept="image/*" multiple>
+        <button id="save-images-btn" type="button">画像を保存</button>
         <button id="print-btn">印刷</button>
       </div>
     </div>
@@ -372,6 +378,7 @@
   </div>
   <input type="file" id="cell-file-input" accept="image/*" style="display:none">
 
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
   const PAGE_W_MM = 210;
   const PAGE_H_MM = 297;
@@ -380,6 +387,7 @@
   const fileInput = document.getElementById('file-input');
   const page = document.getElementById('page');
   const printBtn = document.getElementById('print-btn');
+  const saveImagesBtn = document.getElementById('save-images-btn');
   const title = document.getElementById('title');
   const sizeButtons = document.querySelectorAll('.size-toggle button');
 
@@ -646,6 +654,42 @@
   // カード以外の場所にドロップされてブラウザがファイルを開いてしまうのを防ぐ
   ['dragover', 'drop'].forEach(evt => {
     window.addEventListener(evt, (e) => e.preventDefault());
+  });
+
+  // 配置済みの画像をZIPにまとめてダウンロードする(マス番号をファイル名にする)
+  saveImagesBtn.addEventListener('click', async () => {
+    const placed = cellImages
+      .map((url, i) => ({ url, i }))
+      .filter(entry => entry.url);
+    if (placed.length === 0) {
+      alert('保存する画像がありません。');
+      return;
+    }
+
+    const originalLabel = saveImagesBtn.textContent;
+    saveImagesBtn.disabled = true;
+    saveImagesBtn.textContent = '保存中...';
+    try {
+      const zip = new JSZip();
+      const digits = String(cellImages.length).length;
+      await Promise.all(placed.map(async ({ url, i }) => {
+        const blob = await (await fetch(url)).blob();
+        const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+        zip.file(`${String(i + 1).padStart(digits, '0')}.${ext}`, blob);
+      }));
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = zipUrl;
+      a.download = `card-images_${formatPrintTimestamp(new Date())}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(zipUrl);
+    } finally {
+      saveImagesBtn.disabled = false;
+      saveImagesBtn.textContent = originalLabel;
+    }
   });
 
   // 印刷/PDF保存時のファイル名候補に使われるdocument.titleを、印刷中だけ日時にする
