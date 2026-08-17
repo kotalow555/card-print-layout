@@ -395,8 +395,8 @@
   const fineAdjustW = document.getElementById('fine-adjust-w');
   const fineAdjustH = document.getElementById('fine-adjust-h');
 
-  // 微調整の初期オフセットは基準サイズに対する倍率から算出する(59mmを+0.15mm、86mmを+0.8mmとする比率)
-  const FINE_ADJUST_DEFAULT_SCALE = { w: 1 + 0.15 / 59, h: 1 + 0.8 / 86 };
+  // 微調整の初期オフセットは基準サイズに対する倍率から算出する(59mmを+0.15mm、86mmを+0.9mmとする比率)
+  const FINE_ADJUST_DEFAULT_SCALE = { w: 1 + 0.15 / 59, h: 1 + 0.9 / 86 };
 
   function fineAdjustDefaultFor(btn) {
     const baseW = parseFloat(btn.dataset.w);
